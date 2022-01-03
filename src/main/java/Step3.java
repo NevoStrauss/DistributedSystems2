@@ -12,18 +12,17 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.IOException;
 
-public class Step1 {
+public class Step3 {
 
   private static class Map extends Mapper<LongWritable, Text, Text, IntWritable> {
-    final Text uniqKey = new Text("#");
 
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
       String[] line = value.toString().split("\t");
+      String[] words = line[0].split(" ");
+      String newKey = words[0] + "\t" + words[1] + "\t" + words[2];
       IntWritable occurrences = new IntWritable(Integer.parseInt(line[2]));
-      Text word = new Text(line[0]);
-      context.write(word, occurrences);
-      context.write(uniqKey, occurrences);
+      context.write(new Text(newKey), occurrences);
     }
   }
 
@@ -47,12 +46,12 @@ public class Step1 {
 
   public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
     Configuration conf = new Configuration();
-    Job job = Job.getInstance(conf, "Step1");
-    job.setJarByClass(Step1.class);
-    job.setMapperClass(Map.class);
-    job.setPartitionerClass(PartitionerClass.class);
-    job.setCombinerClass(Reduce.class);
-    job.setReducerClass(Reduce.class);
+    Job job = Job.getInstance(conf, "Step3");
+    job.setJarByClass(Step3.class);
+    job.setMapperClass(Step3.Map.class);
+    job.setPartitionerClass(Step3.PartitionerClass.class);
+    job.setCombinerClass(Step3.Reduce.class);
+    job.setReducerClass(Step3.Reduce.class);
     job.setMapOutputKeyClass(Text.class);
     job.setMapOutputValueClass(IntWritable.class);
     job.setOutputKeyClass(Text.class);
@@ -61,5 +60,5 @@ public class Step1 {
     FileOutputFormat.setOutputPath(job, new Path(args[1]));         //output
     System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
-}
 
+}

@@ -12,18 +12,17 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.IOException;
 
-public class Step1 {
+public class Step2 {
 
   private static class Map extends Mapper<LongWritable, Text, Text, IntWritable> {
-    final Text uniqKey = new Text("#");
 
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
       String[] line = value.toString().split("\t");
+      String[] words = line[0].split(" ");
+      String newKey = words[0] +"\t"+ words[1];
       IntWritable occurrences = new IntWritable(Integer.parseInt(line[2]));
-      Text word = new Text(line[0]);
-      context.write(word, occurrences);
-      context.write(uniqKey, occurrences);
+      context.write(new Text(newKey), occurrences);
     }
   }
 
@@ -31,28 +30,28 @@ public class Step1 {
     @Override
     protected void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
       int occurrences = 0;
-      for (IntWritable value : values) {
+      for (IntWritable value: values) {
         occurrences += value.get();
       }
       context.write(key, new IntWritable(occurrences));
     }
   }
 
-  private static class PartitionerClass extends Partitioner<Text, IntWritable> {
+  private static class PartitionerClass extends Partitioner<Text,IntWritable> {
     @Override
-    public int getPartition(Text key, IntWritable value, int numPartitions) {
+    public int getPartition(Text key, IntWritable value, int numPartitions){
       return Math.abs(key.hashCode()) % numPartitions;
     }
   }
 
   public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
     Configuration conf = new Configuration();
-    Job job = Job.getInstance(conf, "Step1");
-    job.setJarByClass(Step1.class);
-    job.setMapperClass(Map.class);
-    job.setPartitionerClass(PartitionerClass.class);
-    job.setCombinerClass(Reduce.class);
-    job.setReducerClass(Reduce.class);
+    Job job = Job.getInstance(conf, "Step2");
+    job.setJarByClass(Step2.class);
+    job.setMapperClass(Step2.Map.class);
+    job.setPartitionerClass(Step2.PartitionerClass.class);
+    job.setCombinerClass(Step2.Reduce.class);
+    job.setReducerClass(Step2.Reduce.class);
     job.setMapOutputKeyClass(Text.class);
     job.setMapOutputValueClass(IntWritable.class);
     job.setOutputKeyClass(Text.class);
@@ -62,4 +61,3 @@ public class Step1 {
     System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
 }
-
