@@ -19,7 +19,7 @@ public class Main {
   public static AmazonEC2 ec2;
   public static AmazonElasticMapReduce emr;
 
-  public static void main(String[]args){
+  public static void main(String[] args) {
     credentialsProvider = new EnvironmentVariableCredentialsProvider();
 
     System.out.println("===========================================");
@@ -44,12 +44,12 @@ public class Main {
       .withRegion("us-west-2")
       .build();
     System.out.println("creating a emr");
-    emr= AmazonElasticMapReduceClientBuilder.standard()
+    emr = AmazonElasticMapReduceClientBuilder.standard()
       .withCredentials(credentialsProvider)
       .withRegion("us-west-2")
       .build();
 
-    System.out.println( emr.listClusters());
+    System.out.println(emr.listClusters());
 
     StepFactory stepFactory = new StepFactory();
 		/*
@@ -57,7 +57,7 @@ public class Main {
 		 */
     HadoopJarStepConfig step1 = new HadoopJarStepConfig()
       .withJar("s3://assignment2dspmor/step1.jar")
-      .withArgs("step1","null","s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/1gram/data");
+      .withArgs("step1", "null", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/1gram/data");
 
     StepConfig stepOne = new StepConfig()
       .withName("step1")
@@ -68,7 +68,7 @@ public class Main {
 		 */
     HadoopJarStepConfig step2 = new HadoopJarStepConfig()
       .withJar("s3://assignment2dspmor/step2.jar")
-      .withArgs("step2","null","s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/2gram/data");
+      .withArgs("step2", "null", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/2gram/data");
 
     StepConfig stepTwo = new StepConfig()
       .withName("step2")
@@ -79,7 +79,7 @@ public class Main {
 		 */
     HadoopJarStepConfig step3 = new HadoopJarStepConfig()
       .withJar("s3://assignment2dspmor/step3.jar")
-      .withArgs("step3","null","s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data");
+      .withArgs("step3", "null", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data");
 
     StepConfig stepThree = new StepConfig()
       .withName("step3")
@@ -112,7 +112,7 @@ public class Main {
 		 */
     HadoopJarStepConfig step6 = new HadoopJarStepConfig()
       .withJar("s3://assignment2dspmor/step6.jar")
-      .withArgs("step6","null","s3n://assignment2dspmor//outputAssignment2");
+      .withArgs("step6", "null", "s3n://assignment2dspmor//outputAssignment2");
 
     StepConfig stepSix = new StepConfig()
       .withName("step6")
@@ -132,15 +132,15 @@ public class Main {
     RunJobFlowRequest request = new RunJobFlowRequest()
       .withName("Assignment2")
       .withInstances(instances)
-      .withSteps(stepOne,stepTwo,stepThree,stepFour,stepFive,stepSix)
+      .withSteps(stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix)
       .withLogUri("s3n://assignment2dspmor/logs/")
       .withServiceRole("EMR_DefaultRole")
       .withJobFlowRole("EMR_EC2_DefaultRole")
       .withReleaseLabel("emr-5.11.0");
 
     RunJobFlowResult result = emr.runJobFlow(request);
-    String id=result.getJobFlowId();
-    System.out.println("our cluster id: "+id);
+    String id = result.getJobFlowId();
+    System.out.println("our cluster id: " + id);
 
   }
 }
