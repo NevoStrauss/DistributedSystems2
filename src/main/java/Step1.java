@@ -15,7 +15,7 @@ import java.io.IOException;
 public class Step1 {
 
   private static class Map extends Mapper<LongWritable, Text, Text, IntWritable> {
-    final Text uniqKey = new Text("#");
+    final Text uniqKey = new Text("*");
 
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {

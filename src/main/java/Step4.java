@@ -17,19 +17,17 @@ public class Step4 {
 
   private static class Map extends Mapper<LongWritable, Text, Text, Text> {
     @Override
-    public void map (LongWritable key, Text value, Context context)  throws IOException, InterruptedException {
-      String[] strings = value.toString().split("\t");
-      String[] words = strings[0].split(" ");
-      IntWritable occurrences = new IntWritable(Integer.parseInt(strings[1]));
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+      String[] words = key.toString().split("\t");
+      IntWritable occurrences = new IntWritable(Integer.parseInt(value.toString()));
       String w1 = words[0];
       String w2 = words[1];
-      if(words.length>2){
+      if (words.length > 2) { //output of step 3
         String w3 = words[2];
-        context.write(new Text(w1+" "+w2), new Text(w1+" "+w2+" "+w3+"\t"+occurrences));
-        context.write(new Text(w2+" "+w3), new Text(w1+" "+w2+" "+w3+"\t"+occurrences));
-      }
-      else{
-        context.write(new Text(w1+" "+w2) ,new Text(occurrences.toString()));
+        context.write(new Text(w1 + "\t" + w2), new Text(w1 + "\t" + w2 + "\t" + w3 + "\t" + occurrences));
+        context.write(new Text(w2 + "\t" + w3), new Text(w1 + "\t" + w2 + "\t" + w3 + "\t" + occurrences));
+      } else { //output of step 2
+        context.write(new Text(w1 + "\t" + w2), new Text(occurrences.toString()));
       }
     }
   }
@@ -37,26 +35,29 @@ public class Step4 {
   public static class Reduce extends Reducer<Text, Text, Text, Text> {
     @Override
     protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-      String newKey;
-      String occurrences;
-      for (Text value: values) {
-        String[] strings = value.toString().split("\t");
-        newKey = strings[0];
-        if(strings.length>1){
-          occurrences = strings[1];
-        }
-        else {
-          newKey
+      String occurrencesOfW_1W_2 = "";
+      for (Text value : values) {
+        String[] curr = value.toString().split("\t");
+        if (curr.length == 1) {
+          occurrencesOfW_1W_2 = curr[0];
+          break;
         }
       }
-
+      for (Text value : values) {
+        String[] curr = value.toString().split("\t");
+        if (curr.length > 1) {
+          Text newKey = new Text(curr[0] + "\t" + curr[1] + "\t" + curr[2]);
+          Text newValue = new Text(key + "\t" + occurrencesOfW_1W_2);
+          context.write(newKey, newValue);
+          break;
+        }
+      }
     }
   }
 
   private static class PartitionerClass extends Partitioner<Text, Text> {
     @Override
-    public int getPartition(Text key, Text value, int numPartitions){
-
+    public int getPartition(Text key, Text value, int numPartitions) {
       return Math.abs(key.hashCode()) % numPartitions;
     }
 
@@ -72,12 +73,13 @@ public class Step4 {
     job.setOutputValueClass(Text.class);
     job.setPartitionerClass(Step4.PartitionerClass.class);
     job.setOutputFormatClass(TextOutputFormat.class);
-    String input1="/outputStep2/";
-    String input2="/outputStep3/";
-    String output4="/outputStep4/";
+    String input1 = "/outputStep2/";
+    String input2 = "/outputStep3/";
+    String output4 = "/outputStep4/";
     MultipleInputs.addInputPath(job, new Path(input1), TextInputFormat.class);
     MultipleInputs.addInputPath(job, new Path(input2), TextInputFormat.class);
     FileOutputFormat.setOutputPath(job, new Path(output4));
     job.waitForCompletion(true);
   }
 }
+
