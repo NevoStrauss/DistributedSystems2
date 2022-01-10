@@ -95,7 +95,7 @@ public class Step5 {
 
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
-    Job job = Job.getInstance(conf);
+    Job job = Job.getInstance(conf, args[0]);
     job.setJarByClass(Step5.class);
     job.setMapperClass(Map.class);
     job.setReducerClass(Reduce.class);
@@ -103,9 +103,9 @@ public class Step5 {
     job.setOutputValueClass(Text.class);
     job.setPartitionerClass(Step5.PartitionerClass.class);
     job.setOutputFormatClass(TextOutputFormat.class);
-    String input1 = "/output3/";
-    String input2 = "/output4/";
-    String output = "/output5/";
+    String input1 = args[1];
+    String input2 = args[2];
+    String output = args[3];
     MultipleInputs.addInputPath(job, new Path(input1), TextInputFormat.class);
     MultipleInputs.addInputPath(job, new Path(input2), TextInputFormat.class);
     FileOutputFormat.setOutputPath(job, new Path(output));

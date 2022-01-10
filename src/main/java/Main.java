@@ -1,146 +1,175 @@
-
-import com.amazonaws.services.elasticmapreduce.util.StepFactory;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
-import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduceClientBuilder;
-import com.amazonaws.services.elasticmapreduce.model.*;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.model.InstanceType;
+import software.amazon.awssdk.services.emr.EmrClient;
+import software.amazon.awssdk.services.emr.model.*;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 
 public class Main {
-  public static AWSCredentialsProvider credentialsProvider;
-  public static AmazonS3 S3;
-  public static AmazonEC2 ec2;
-  public static AmazonElasticMapReduce emr;
+  public static S3Client S3;
+  public static Ec2Client ec2;
+  public static EmrClient emr;
+  private static final String outputBucket = "dsp-ass2output";
+  private static final String outputBucketBaseUrl = "s3://" + outputBucket + "/";
+  private static final String jarsBucket = "dsp-jars-eran-nevo";
+  private static final String jarsBucketBaseUrl = "s3://" + jarsBucket + "/";
+  private static final Region REGION = Region.US_EAST_1;
+  private static String TERMINATE = "TERMINATE_JOB_FLOW";
 
   public static void main(String[] args) {
-    credentialsProvider = new EnvironmentVariableCredentialsProvider();
 
-    System.out.println("===========================================");
-    System.out.println("connect to aws & S3");
-    System.out.println("===========================================\n");
+    System.out.println("===============================================");
+    System.out.println("Connect to aws & S3");
+    System.out.println("===============================================\n");
 
-    S3 = AmazonS3ClientBuilder.standard()
-      .withCredentials(credentialsProvider)
-      .withRegion("us-west-2")
+    ec2 = Ec2Client.builder()
+      .region(REGION)
       .build();
-    //delete the output file if it exist
-    ObjectListing objects = S3.listObjects("assignment2dspmor", "outputAssignment2");
-    for (S3ObjectSummary s3ObjectSummary : objects.getObjectSummaries()) {
-      S3.deleteObject("assignment2dspmor", s3ObjectSummary.getKey());
-    }
-    System.out.println("===========================================");
-    System.out.println("connect to aws & ec2");
-    System.out.println("===========================================\n");
 
-    ec2 = AmazonEC2ClientBuilder.standard()
-      .withCredentials(credentialsProvider)
-      .withRegion("us-west-2")
+    S3 = S3Client.builder()
+      .region(REGION)
       .build();
-    System.out.println("creating a emr");
-    emr = AmazonElasticMapReduceClientBuilder.standard()
-      .withCredentials(credentialsProvider)
-      .withRegion("us-west-2")
+
+    System.out.println("===============================================");
+    System.out.println("Clean all S3 buckets");
+    System.out.println("===============================================\n");
+
+    S3Adapter s3Adapter = new S3Adapter(S3);
+    s3Adapter.deleteAllBuckets();
+
+
+    System.out.println("===============================================");
+    System.out.println("Create new S3 buckets");
+    System.out.println("===============================================\n");
+
+    S3.createBucket(CreateBucketRequest.builder().bucket(outputBucket).build());
+    S3.createBucket(CreateBucketRequest.builder().bucket(jarsBucket).build());
+
+    System.out.println("===============================================");
+    System.out.println("Upload jars to S3");
+    System.out.println("===============================================\n");
+
+    s3Adapter.uploadJarsTo(jarsBucket);
+
+    System.out.println("===============================================");
+    System.out.println("Create EMR");
+    System.out.println("===============================================\n");
+
+    emr = EmrClient.builder()
+      .region(REGION)
       .build();
+
+    System.out.println("===============================================");
+    System.out.println("EMR clusters:");
+    System.out.println("===============================================\n");
 
     System.out.println(emr.listClusters());
 
-    StepFactory stepFactory = new StepFactory();
-		/*
-        step1
-		 */
-    HadoopJarStepConfig step1 = new HadoopJarStepConfig()
-      .withJar("s3://assignment2dspmor/step1.jar")
-      .withArgs("step1", "null", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/1gram/data");
 
-    StepConfig stepOne = new StepConfig()
-      .withName("step1")
-      .withHadoopJarStep(step1)
-      .withActionOnFailure("TERMINATE_JOB_FLOW");
-		/*
-        step2
-		 */
-    HadoopJarStepConfig step2 = new HadoopJarStepConfig()
-      .withJar("s3://assignment2dspmor/step2.jar")
-      .withArgs("step2", "null", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/2gram/data");
+    //step 1 configs
+    HadoopJarStepConfig stepOneJarConfig = HadoopJarStepConfig.builder()
+      .jar(jarsBucketBaseUrl + "Step1.jar")
+      .args("Step1", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/1gram/data", "/output1/")
+      .build();
 
-    StepConfig stepTwo = new StepConfig()
-      .withName("step2")
-      .withHadoopJarStep(step2)
-      .withActionOnFailure("TERMINATE_JOB_FLOW");
-		/*
-        step3
-		 */
-    HadoopJarStepConfig step3 = new HadoopJarStepConfig()
-      .withJar("s3://assignment2dspmor/step3.jar")
-      .withArgs("step3", "null", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data");
+    StepConfig stepOneConfigs = StepConfig.builder()
+      .name("Step1")
+      .hadoopJarStep(stepOneJarConfig)
+      .actionOnFailure(TERMINATE)
+      .build();
 
-    StepConfig stepThree = new StepConfig()
-      .withName("step3")
-      .withHadoopJarStep(step3)
-      .withActionOnFailure("TERMINATE_JOB_FLOW");
-		/*
-        step4
-		 */
-    HadoopJarStepConfig step4 = new HadoopJarStepConfig()
-      .withJar("s3://assignment2dspmor/step4.jar")
-      .withArgs("step4");
 
-    StepConfig stepFour = new StepConfig()
-      .withName("step4")
-      .withHadoopJarStep(step4)
-      .withActionOnFailure("TERMINATE_JOB_FLOW");
-		/*
-        step5
-		 */
-    HadoopJarStepConfig step5 = new HadoopJarStepConfig()
-      .withJar("s3://assignment2dspmor/step5.jar")
-      .withArgs("step5");
+    //step2 configs
+    HadoopJarStepConfig stepTwoJarConfig = HadoopJarStepConfig.builder()
+      .jar(jarsBucketBaseUrl + "Step2.jar")
+      .args("Step2", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/2gram/data", "/output2/")
+      .build();
 
-    StepConfig stepFive = new StepConfig()
-      .withName("step5")
-      .withHadoopJarStep(step5)
-      .withActionOnFailure("TERMINATE_JOB_FLOW");
-		/*
-        step6
-		 */
-    HadoopJarStepConfig step6 = new HadoopJarStepConfig()
-      .withJar("s3://assignment2dspmor/step6.jar")
-      .withArgs("step6", "null", "s3n://assignment2dspmor//outputAssignment2");
+    StepConfig stepTwoConfigs = StepConfig.builder()
+      .name("Step2")
+      .hadoopJarStep(stepTwoJarConfig)
+      .actionOnFailure(TERMINATE)
+      .build();
 
-    StepConfig stepSix = new StepConfig()
-      .withName("step6")
-      .withHadoopJarStep(step6)
-      .withActionOnFailure("TERMINATE_JOB_FLOW");
 
-    JobFlowInstancesConfig instances = new JobFlowInstancesConfig()
-      .withInstanceCount(3)
-      .withMasterInstanceType(InstanceType.M3Xlarge.toString())
-      .withSlaveInstanceType(InstanceType.M3Xlarge.toString())
-      .withHadoopVersion("2.7.3")
-      .withEc2KeyName("morKP")
-      .withPlacement(new PlacementType("us-west-2a"))
-      .withKeepJobFlowAliveWhenNoSteps(false);
+    //step3 configs
+    HadoopJarStepConfig stepThreeJarConfig = HadoopJarStepConfig.builder()
+      .jar(jarsBucketBaseUrl + "Step3.jar")
+      .args("Step3", "s3n://datasets.elasticmapreduce/ngrams/books/20090715/heb-all/3gram/data", "/output3/")
+      .build();
+
+    StepConfig stepThreeConfigs = StepConfig.builder()
+      .name("Step3")
+      .hadoopJarStep(stepThreeJarConfig)
+      .actionOnFailure(TERMINATE)
+      .build();
+
+    //step4 configs
+    HadoopJarStepConfig stepFourJarConfig = HadoopJarStepConfig.builder()
+      .jar(jarsBucketBaseUrl + "Step4.jar")
+      .args("Step4", "/output2/", "/output3/", "/output4/")
+      .build();
+
+    StepConfig stepFourConfigs = StepConfig.builder()
+      .name("Step4")
+      .hadoopJarStep(stepFourJarConfig)
+      .actionOnFailure(TERMINATE)
+      .build();
+
+
+    //step5 configs
+    HadoopJarStepConfig stepFiveJarConfig = HadoopJarStepConfig.builder()
+      .jar(jarsBucketBaseUrl + "Step5.jar")
+      .args("Step5", "/output3/", "/output4/", "/output5/")
+      .build();
+
+
+    StepConfig stepFiveConfigs = StepConfig.builder()
+      .name("Step5")
+      .hadoopJarStep(stepFiveJarConfig)
+      .actionOnFailure(TERMINATE)
+      .build();
+
+
+    //step6 configs
+    HadoopJarStepConfig stepSixJarConfig = HadoopJarStepConfig.builder()
+      .jar(jarsBucketBaseUrl + "Step6.jar")
+      .args("Step6", "/output5", outputBucketBaseUrl + "outputAssignment2")
+      .build();
+
+    StepConfig stepSixConfig = StepConfig.builder()
+      .name("Step6")
+      .hadoopJarStep(stepSixJarConfig)
+      .actionOnFailure(TERMINATE)
+      .build();
+
+    JobFlowInstancesConfig instances = JobFlowInstancesConfig.builder()
+      .instanceCount(3)
+      .masterInstanceType(InstanceType.M4_2_XLARGE.toString())
+      .slaveInstanceType(InstanceType.M4_2_XLARGE.toString())
+      .hadoopVersion("3.3.1")
+      .ec2KeyName("vockey")
+      .placement(PlacementType.builder().build())
+      .keepJobFlowAliveWhenNoSteps(false)
+      .build();
 
     System.out.println("give the cluster all our steps");
-    RunJobFlowRequest request = new RunJobFlowRequest()
-      .withName("Assignment2")
-      .withInstances(instances)
-      .withSteps(stepOne, stepTwo, stepThree, stepFour, stepFive, stepSix)
-      .withLogUri("s3n://assignment2dspmor/logs/")
-      .withServiceRole("EMR_DefaultRole")
-      .withJobFlowRole("EMR_EC2_DefaultRole")
-      .withReleaseLabel("emr-5.11.0");
 
-    RunJobFlowResult result = emr.runJobFlow(request);
-    String id = result.getJobFlowId();
+    RunJobFlowRequest request = RunJobFlowRequest.builder()
+      .name("dspAss2EraNevo")
+      .instances(instances)
+      .steps(stepOneConfigs, stepTwoConfigs, stepThreeConfigs, stepFourConfigs, stepFiveConfigs) //add step 6 when ready
+      .logUri(jarsBucketBaseUrl + "logs/")
+      .serviceRole("EMR_DefaultRole")
+      .jobFlowRole("EMR_EC2_DefaultRole")
+      .releaseLabel("emr-5.11.0")
+      .build();
+
+    RunJobFlowResponse response = emr.runJobFlow(request);
+    String id = response.jobFlowId();
     System.out.println("our cluster id: " + id);
-
   }
+
+
 }

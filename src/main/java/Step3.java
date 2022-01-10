@@ -46,7 +46,7 @@ public class Step3 {
 
   public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
     Configuration conf = new Configuration();
-    Job job = Job.getInstance(conf, "Step3");
+    Job job = Job.getInstance(conf, args[0]);
     job.setJarByClass(Step3.class);
     job.setMapperClass(Step3.Map.class);
     job.setPartitionerClass(Step3.PartitionerClass.class);
@@ -56,8 +56,8 @@ public class Step3 {
     job.setMapOutputValueClass(IntWritable.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(IntWritable.class);
-    FileInputFormat.addInputPath(job, new Path(args[0]));           //input
-    FileOutputFormat.setOutputPath(job, new Path(args[1]));         //output
+    FileInputFormat.addInputPath(job, new Path(args[1]));           //input
+    FileOutputFormat.setOutputPath(job, new Path(args[2]));         //output
     System.exit(job.waitForCompletion(true) ? 0 : 1);
   }
 
