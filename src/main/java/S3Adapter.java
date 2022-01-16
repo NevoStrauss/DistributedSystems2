@@ -2,6 +2,8 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,13 +62,14 @@ public class S3Adapter {
   }
 
   public void uploadJarsTo(String jarsBucket) {
-    for (int i = 1; i <= 5; i++) {
-      String currJar = "..//out//artifacts//Step" + i + "_jar//Step" + i + ".jar";
+    for (int i = 1; i <= 6; i++) {
+      String currJar = "../../../../out/artifacts/DistributedSystems2_jar/Step" + i + ".jar";
       PutObjectRequest request = PutObjectRequest.builder()
         .bucket(jarsBucket)
-        .key("Step" + i + "Jar")
+        .key("Step"+i+".jar")
         .build();
-      S3.putObject(request, RequestBody.fromFile(new File(currJar)));
+      System.out.println("Uploading Step"+i+".jar...");
+      S3.putObject(request, RequestBody.fromFile(new File(currJar.substring(10))));
     }
   }
 
