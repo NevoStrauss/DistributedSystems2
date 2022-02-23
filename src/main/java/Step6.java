@@ -47,7 +47,6 @@ public class Step6 {
     protected CompareClass() {
       super(Text.class, true);
     }
-
     @Override
     public int compare(WritableComparable key1, WritableComparable key2) {
       String[] strings1 = key1.toString().split(" ");
@@ -75,12 +74,13 @@ public class Step6 {
     job.setJarByClass(Step6.class);
     job.setMapperClass(Map.class);
     job.setReducerClass(Reduce.class);
+    job.setSortComparatorClass(CompareClass.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(Text.class);
     job.setOutputFormatClass(TextOutputFormat.class);
     job.setInputFormatClass(SequenceFileInputFormat.class);
     SequenceFileInputFormat.addInputPath(job, new Path(step5output));
-    FileOutputFormat.setOutputPath(job, new Path(output));         //output
+    FileOutputFormat.setOutputPath(job, new Path(output));
     System.exit(job.waitForCompletion(true) ? 0 : 1);
 
   }
